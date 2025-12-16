@@ -39,6 +39,13 @@ public class Converter {
                     result.append(stack.pop()).append(" ");
                 }
                 stack.push(token);
+            } else {
+                // في الوضع العادي، نعتبر أي token ليس مشغلاً ولا قوساً هو معامل
+                if (!isCustom) {
+                    result.append(token).append(" ");
+                } else {
+                    throw new IllegalArgumentException("Invalid token in custom mode: " + token);
+                }
             }
         }
 
@@ -60,13 +67,21 @@ public class Converter {
         String[] tokens = postfix.split(" ");
 
         for (String token : tokens) {
-            if (isOperand(token)) {
+            if (isOperand(token) || (!isCustom && !isOperator(token))) {
                 stack.push(token);
             } else if (isOperator(token)) {
+                if (stack.size() < 2) {
+                    throw new IllegalArgumentException("Invalid postfix expression");
+                }
                 String op2 = stack.pop();
                 String op1 = stack.pop();
                 stack.push("( " + op1 + " " + token + " " + op2 + " )");
+            } else {
+                throw new IllegalArgumentException("Invalid token: " + token);
             }
+        }
+        if (stack.size() != 1) {
+            throw new IllegalArgumentException("Invalid postfix expression");
         }
         return stack.pop();
     }
@@ -77,13 +92,21 @@ public class Converter {
 
         for (int i = tokens.length - 1; i >= 0; i--) {
             String token = tokens[i];
-            if (isOperand(token)) {
+            if (isOperand(token) || (!isCustom && !isOperator(token))) {
                 stack.push(token);
             } else if (isOperator(token)) {
+                if (stack.size() < 2) {
+                    throw new IllegalArgumentException("Invalid prefix expression");
+                }
                 String op1 = stack.pop();
                 String op2 = stack.pop();
                 stack.push("( " + op1 + " " + token + " " + op2 + " )");
+            } else {
+                throw new IllegalArgumentException("Invalid token: " + token);
             }
+        }
+        if (stack.size() != 1) {
+            throw new IllegalArgumentException("Invalid prefix expression");
         }
         return stack.pop();
     }
@@ -111,23 +134,32 @@ public class Converter {
             if (isNumeric(token)) {
                 stack.push(Double.parseDouble(token));
             } else if (isOperator(token)) {
+                if (stack.size() < 2) {
+                    throw new IllegalArgumentException("Invalid postfix expression");
+                }
                 double op2 = stack.pop();
                 double op1 = stack.pop();
                 stack.push(calculate(token, op1, op2));
+            } else {
+                throw new IllegalArgumentException("Invalid token: " + token);
             }
+        }
+        if (stack.size() != 1) {
+            throw new IllegalArgumentException("Invalid postfix expression");
         }
         return stack.pop();
     }
 
     private boolean isOperand(String token) {
         if (isCustom) {
+            // في الوضع المخصص، نتحقق من قائمة المعاملات
             for (String op : operands) {
                 if (op.equals(token)) return true;
             }
             return false;
         }
-        // في الوضع العادي، نعتبر أن أي token ليس مشغلاً ولا قوساً هو معامل
-        return !isOperator(token) && !token.equals("(") && !token.equals(")");
+        // في الوضع العادي، نعتبر أن أي token ليس مشغلاً هو معامل
+        return !isOperator(token);
     }
 
     private boolean isOperator(String token) {

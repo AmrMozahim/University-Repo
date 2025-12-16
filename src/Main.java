@@ -53,7 +53,7 @@ public class Main extends Application {
         });
 
         // Input
-        input.setPromptText("Enter expression here (use spaces)");
+        input.setPromptText("Enter expression here (use spaces between tokens)");
         input.setPrefHeight(100);
 
         // Conversion type
@@ -156,6 +156,9 @@ public class Main extends Application {
                 case "Prefix to Postfix":
                     result = converter.prefixToPostfix(text);
                     break;
+                default:
+                    output.setText("Error: Invalid conversion type");
+                    return;
             }
 
             output.setText(result);
@@ -173,13 +176,16 @@ public class Main extends Application {
         }
 
         try {
+            // في الوضع المخصص، لا يمكن التقييم
             if (isCustom) {
-                // محاولة التقييم في الوضع المخصص
+                // محاولة التحويل فقط
                 String postfix = converter.infixToPostfix(text);
                 output.setText("Evaluation not available in custom mode.\nPostfix: " + postfix);
                 return;
             }
 
+            // في الوضع العادي، يمكن التقييم
+            converter.resetToDefault();
             String postfix = converter.infixToPostfix(text);
             double result = converter.evaluatePostfix(postfix);
             output.setText("Result: " + result + "\nPostfix: " + postfix);
@@ -207,7 +213,8 @@ public class Main extends Application {
 
                 String[] tokens = content.toString().trim().split("\\s+");
                 language = tokens;
-                output.setText("Language loaded: " + language.length + " operands");
+                output.setText("Language loaded: " + language.length + " operands\n" +
+                        "Operands: " + String.join(" ", language));
 
             } catch (Exception e) {
                 output.setText("Error: " + e.getMessage());
@@ -263,7 +270,14 @@ public class Main extends Application {
                 }
                 reader.close();
 
-                output.setText("Precedence loaded: " + operatorCount + " operators");
+                // عرض المشغلات المحملة
+                StringBuilder opsList = new StringBuilder();
+                for (int i = 0; i < customOps.length; i++) {
+                    opsList.append(customOps[i]).append("(").append(customPrio[i]).append(") ");
+                }
+
+                output.setText("Precedence loaded: " + operatorCount + " operators\n" +
+                        "Operators: " + opsList.toString().trim());
 
             } catch (Exception e) {
                 output.setText("Error: " + e.getMessage());
@@ -274,7 +288,7 @@ public class Main extends Application {
     private void saveReport() {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save Report");
-        chooser.setInitialFileName("report.txt");
+        chooser.setInitialFileName("conversion_report.txt");
         chooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("Text Files", "*.txt")
         );
@@ -290,7 +304,7 @@ public class Main extends Application {
 
                 if (isCustom) {
                     writer.println("\nCustom Configuration:");
-                    writer.print("Language: ");
+                    writer.print("Language Operands: ");
                     for (String s : language) {
                         writer.print(s + " ");
                     }
@@ -301,17 +315,16 @@ public class Main extends Application {
                     }
                 } else {
                     // Conventional mode
-                    writer.println("\nEvaluation:");
-                    if (output.getText().startsWith("Result:")) {
-                        writer.println(output.getText());
-                    }
+                    writer.println("\nConventional Mode Configuration:");
+                    writer.println("Default Operators: + - * / ^");
+                    writer.println("Default Priorities: +:1 -:1 *:2 /:2 ^:3");
                 }
 
                 writer.println("\nDate: " + new java.util.Date());
                 writer.println("=================================");
                 writer.close();
 
-                output.setText("Report saved successfully");
+                output.setText("Report saved successfully to: " + file.getName());
 
             } catch (Exception e) {
                 output.setText("Error: " + e.getMessage());
