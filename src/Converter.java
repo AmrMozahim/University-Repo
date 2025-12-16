@@ -3,21 +3,21 @@ public class Converter {
     private int[] priorities = {1, 1, 2, 2, 3};
     private String[] operands = new String[0];
     private boolean isCustom = false;
-
+// custom mode enable
     public void setCustom(String[] ops, String[] customOps, int[] customPrio) {
         isCustom = true;
         operands = ops;
         operators = customOps;
         priorities = customPrio;
     }
-
+// ال default convinational
     public void resetToDefault() {
         isCustom = false;
         operands = new String[0];
         operators = new String[]{"+", "-", "*", "/", "^"};
         priorities = new int[]{1, 1, 2, 2, 3};
     }
-
+// methods التحويل
     public String infixToPostfix(String infix) {
         Stack<String> stack = new Stack<>(100);
         StringBuilder result = new StringBuilder();
@@ -40,12 +40,8 @@ public class Converter {
                 }
                 stack.push(token);
             } else {
-                // في الوضع العادي، نعتبر أي token ليس مشغلاً ولا قوساً هو معامل
-                if (!isCustom) {
-                    result.append(token).append(" ");
-                } else {
-                    throw new IllegalArgumentException("Invalid token in custom mode: " + token);
-                }
+                // Invalid token (unkown operator and operands)
+                throw new IllegalArgumentException("Invalid token: '" + token + "'");
             }
         }
 
@@ -67,7 +63,7 @@ public class Converter {
         String[] tokens = postfix.split(" ");
 
         for (String token : tokens) {
-            if (isOperand(token) || (!isCustom && !isOperator(token))) {
+            if (isOperand(token)) {
                 stack.push(token);
             } else if (isOperator(token)) {
                 if (stack.size() < 2) {
@@ -77,9 +73,10 @@ public class Converter {
                 String op1 = stack.pop();
                 stack.push("( " + op1 + " " + token + " " + op2 + " )");
             } else {
-                throw new IllegalArgumentException("Invalid token: " + token);
+                throw new IllegalArgumentException("Invalid token: '" + token + "'");
             }
         }
+
         if (stack.size() != 1) {
             throw new IllegalArgumentException("Invalid postfix expression");
         }
@@ -92,7 +89,7 @@ public class Converter {
 
         for (int i = tokens.length - 1; i >= 0; i--) {
             String token = tokens[i];
-            if (isOperand(token) || (!isCustom && !isOperator(token))) {
+            if (isOperand(token)) {
                 stack.push(token);
             } else if (isOperator(token)) {
                 if (stack.size() < 2) {
@@ -102,9 +99,10 @@ public class Converter {
                 String op2 = stack.pop();
                 stack.push("( " + op1 + " " + token + " " + op2 + " )");
             } else {
-                throw new IllegalArgumentException("Invalid token: " + token);
+                throw new IllegalArgumentException("Invalid token: '" + token + "'");
             }
         }
+
         if (stack.size() != 1) {
             throw new IllegalArgumentException("Invalid prefix expression");
         }
@@ -141,9 +139,10 @@ public class Converter {
                 double op1 = stack.pop();
                 stack.push(calculate(token, op1, op2));
             } else {
-                throw new IllegalArgumentException("Invalid token: " + token);
+                throw new IllegalArgumentException("Invalid token: '" + token + "'");
             }
         }
+
         if (stack.size() != 1) {
             throw new IllegalArgumentException("Invalid postfix expression");
         }
@@ -152,26 +151,33 @@ public class Converter {
 
     private boolean isOperand(String token) {
         if (isCustom) {
-            // في الوضع المخصص، نتحقق من قائمة المعاملات
-            for (String op : operands) {
-                if (op.equals(token)) return true;
+            // في الوضع المخصص: نتحقق من قائمة المعاملات
+            for (String operand : operands) {
+                if (operand.equals(token)) {
+                    return true;
+                }
             }
             return false;
+        } else {
+            // في الوضع العادي: نتحقق إذا كان رقم
+            return isNumeric(token);
         }
-        // في الوضع العادي، نعتبر أن أي token ليس مشغلاً هو معامل
-        return !isOperator(token);
     }
 
     private boolean isOperator(String token) {
         for (String op : operators) {
-            if (op.equals(token)) return true;
+            if (op.equals(token)) {
+                return true;
+            }
         }
         return false;
     }
 
     private int getPriority(String op) {
         for (int i = 0; i < operators.length; i++) {
-            if (operators[i].equals(op)) return priorities[i];
+            if (operators[i].equals(op)) {
+                return priorities[i];
+            }
         }
         return 0;
     }
@@ -193,12 +199,7 @@ public class Converter {
             case "/":
                 if (b == 0) throw new ArithmeticException("Division by zero");
                 return a / b;
-            case "%": return a % b;
             case "^": return Math.pow(a, b);
-            case "&&": return (a != 0 && b != 0) ? 1.0 : 0.0;
-            case "||": return (a != 0 || b != 0) ? 1.0 : 0.0;
-            case "$":
-            case "@":
             default:
                 throw new UnsupportedOperationException("Operator '" + op + "' not supported for evaluation");
         }

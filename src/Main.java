@@ -45,15 +45,17 @@ public class Main extends Application {
         normal.setOnAction(e -> {
             isCustom = false;
             fileBox.setVisible(false);
+            output.setText("Switched to Conventional mode (numbers only)");
         });
 
         custom.setOnAction(e -> {
             isCustom = true;
             fileBox.setVisible(true);
+
         });
 
         // Input
-        input.setPromptText("Enter expression here (use spaces between tokens)");
+        input.setPromptText("Enter expression here");
         input.setPrefHeight(100);
 
         // Conversion type
@@ -67,7 +69,7 @@ public class Main extends Application {
         );
         type.setValue("Infix to Postfix");
 
-        // Action buttons (for both modes)
+        // Action buttons
         HBox buttonBox = new HBox(10);
         Button convert = new Button("Convert");
         Button evaluate = new Button("Evaluate");
@@ -156,9 +158,6 @@ public class Main extends Application {
                 case "Prefix to Postfix":
                     result = converter.prefixToPostfix(text);
                     break;
-                default:
-                    output.setText("Error: Invalid conversion type");
-                    return;
             }
 
             output.setText(result);
@@ -178,19 +177,24 @@ public class Main extends Application {
         try {
             // في الوضع المخصص، لا يمكن التقييم
             if (isCustom) {
-                // محاولة التحويل فقط
-                String postfix = converter.infixToPostfix(text);
-                output.setText("Evaluation not available in custom mode.\nPostfix: " + postfix);
+                output.setText("Error: Evaluation is only available in Conventional mode (numbers only)");
                 return;
             }
 
             // في الوضع العادي، يمكن التقييم
             converter.resetToDefault();
+
+            // أولاً: تحويل إلى postfix
             String postfix = converter.infixToPostfix(text);
+
+            // ثانياً: تقييم postfix
             double result = converter.evaluatePostfix(postfix);
-            output.setText("Result: " + result + "\nPostfix: " + postfix);
+
+            output.setText( "Postfix: " + postfix + "\n" + "Result: " + result);
+
         } catch (Exception e) {
-            output.setText("Error: " + e.getMessage());
+            output.setText("Error: " + e.getMessage() +
+                    "\n\nNote: Conventional mode only supports numbers (e.g., 2 + 3 * 4)");
         }
     }
 
@@ -213,11 +217,11 @@ public class Main extends Application {
 
                 String[] tokens = content.toString().trim().split("\\s+");
                 language = tokens;
-                output.setText("Language loaded: " + language.length + " operands\n" +
-                        "Operands: " + String.join(" ", language));
+
+                output.setText("Language file loaded successfully!\n\n" );
 
             } catch (Exception e) {
-                output.setText("Error: " + e.getMessage());
+                output.setText("Error loading language file: " + e.getMessage());
             }
         }
     }
@@ -241,10 +245,18 @@ public class Main extends Application {
                     if (line.isEmpty()) continue;
 
                     String[] parts = line.split("\\s+");
-                    // نطرح 1 لأن آخر عنصر هو الأسبقية
-                    operatorCount += (parts.length - 1);
+                    // نتحقق أن السطر يحتوي على أولوية (رقم في النهاية)
+                    if (parts.length >= 2) {
+                        // نطرح 1 لأن آخر عنصر هو الأسبقية
+                        operatorCount += (parts.length - 1);
+                    }
                 }
                 reader.close();
+
+                if (operatorCount == 0) {
+                    output.setText("Error: No valid operators found in the file");
+                    return;
+                }
 
                 // ثانياً: قراءة المشغلات وأولوياتها
                 reader = new BufferedReader(new FileReader(file));
@@ -259,7 +271,17 @@ public class Main extends Application {
                     String[] parts = line.split("\\s+");
                     if (parts.length < 2) continue;
 
-                    int priority = Integer.parseInt(parts[parts.length - 1]);
+                    // آخر عنصر هو الأولوية
+                    String lastPart = parts[parts.length - 1];
+                    int priority;
+
+                    try {
+                        priority = Integer.parseInt(lastPart);
+                    } catch (NumberFormatException e) {
+                        output.setText("Error: Priority must be a number. Found: '" + lastPart + "'");
+                        reader.close();
+                        return;
+                    }
 
                     // إضافة كل مشغل في السطر (ما عدا الأخير)
                     for (int i = 0; i < parts.length - 1; i++) {
@@ -270,17 +292,40 @@ public class Main extends Application {
                 }
                 reader.close();
 
-                // عرض المشغلات المحملة
-                StringBuilder opsList = new StringBuilder();
-                for (int i = 0; i < customOps.length; i++) {
-                    opsList.append(customOps[i]).append("(").append(customPrio[i]).append(") ");
+                // عرض النتيجة
+                StringBuilder result = new StringBuilder();
+                result.append("Precedence file loaded successfully!");
+
+
+
+
+
+
+                // البحث عن الأولويات الفريدة
+                String priorities = "";
+                for (int i = 0; i < customPrio.length; i++) {
+                    String prioStr = String.valueOf(customPrio[i]);
+                    if (!priorities.contains("|" + prioStr + "|")) {
+                        priorities += "|" + prioStr + "|";
+
+                        // جمع كل العمليات لهذه الأولوية
+                        result.append("  Priority ").append(prioStr).append(": ");
+                        String operatorsForThisPrio = "";
+
+                        for (int j = 0; j < customOps.length; j++) {
+                            if (customPrio[j] == customPrio[i]) {
+                                operatorsForThisPrio += customOps[j] + " ";
+                            }
+                        }
+
+
+                    }
                 }
 
-                output.setText("Precedence loaded: " + operatorCount + " operators\n" +
-                        "Operators: " + opsList.toString().trim());
+                output.setText(result.toString());
 
             } catch (Exception e) {
-                output.setText("Error: " + e.getMessage());
+                output.setText("Error loading precedence file: " + e.getMessage());
             }
         }
     }
@@ -297,37 +342,42 @@ public class Main extends Application {
             try {
                 PrintWriter writer = new PrintWriter(file);
                 writer.println("=== Notation Conversion Report ===");
+                writer.println();
                 writer.println("Mode: " + (isCustom ? "Custom" : "Conventional"));
+                writer.println();
                 writer.println("Input Expression: " + input.getText());
                 writer.println("Conversion Type: " + type.getValue());
                 writer.println("Output: " + output.getText());
+                writer.println();
 
                 if (isCustom) {
-                    writer.println("\nCustom Configuration:");
-                    writer.print("Language Operands: ");
+                    writer.println("=== Custom Configuration ===");
+                    writer.println("Language File:");
+                    writer.print("  Operands: ");
                     for (String s : language) {
                         writer.print(s + " ");
                     }
                     writer.println();
-                    writer.println("Operators and Priorities:");
+                    writer.println();
+                    writer.println("Precedence File:");
+                    writer.println("  Operators and Priorities:");
                     for (int i = 0; i < customOps.length; i++) {
-                        writer.println("  " + customOps[i] + " -> " + customPrio[i]);
+                        writer.println("    " + customOps[i] + " -> " + customPrio[i]);
                     }
                 } else {
-                    // Conventional mode
-                    writer.println("\nConventional Mode Configuration:");
-                    writer.println("Default Operators: + - * / ^");
-                    writer.println("Default Priorities: +:1 -:1 *:2 /:2 ^:3");
+                    writer.println("=== Conventional Mode ===");
+                    writer.println("Operators: +, -, *, /, ^");
+                    writer.println("Priorities: +:1, -:1, *:2, /:2, ^:3");
                 }
 
-                writer.println("\nDate: " + new java.util.Date());
+                writer.println();
                 writer.println("=================================");
                 writer.close();
 
-                output.setText("Report saved successfully to: " + file.getName());
+                output.setText("Report saved successfully to:\n" + file.getAbsolutePath());
 
             } catch (Exception e) {
-                output.setText("Error: " + e.getMessage());
+                output.setText("Error saving report: " + e.getMessage());
             }
         }
     }
